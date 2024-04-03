@@ -68,6 +68,24 @@ void main(paddr_t boot_flag, void *info)
 
 	void lab2_test_buddy(void);
 	lab2_test_buddy();
+
+	
+	memset(empty_page, 0, PAGE_SIZE);
+	vmr_prop_t flag1, flag2, flag3;
+	flag1 = VMR_EXEC;
+	map_range_in_pgtbl_kernel(empty_page, KBASE, (paddr_t)0, 0x3f000000ul, flag1);
+
+	flag2 = VMR_EXEC | VMR_DEVICE;
+	map_range_in_pgtbl_kernel(empty_page, KBASE + 0x3f000000, (paddr_t)0x3f000000, 0x1000000ul, flag2);
+
+	flag3 = VMR_EXEC | VMR_DEVICE;
+	map_range_in_pgtbl_kernel(empty_page, KBASE + 0x40000000, (paddr_t)0x40000000, 0x40000000ul, flag3);
+	u64 phy_addr = virt_to_phys(empty_page);
+	asm volatile("msr ttbr1_el1, %0" : :"r"(phy_addr));
+	
+	flush_tlb_all();
+    kinfo("[Chcore] map for 4k finished\n");
+
 	void lab2_test_kmalloc(void);
 	lab2_test_kmalloc();
 	void lab2_test_page_table(void);
@@ -76,8 +94,9 @@ void main(paddr_t boot_flag, void *info)
 	void lab2_test_pm_usage(void);
 	lab2_test_pm_usage();
 #endif
+	printk("empty page is %lx, ttbr is %lx\n", empty_page, boot_ttbr1_l0);
 	/* Mapping KSTACK into kernel page table. */
-	map_range_in_pgtbl_kernel((void*)((unsigned long)boot_ttbr1_l0 + KBASE), 
+	map_range_in_pgtbl_kernel((void*)((unsigned long)empty_page), 
 			KSTACKx_ADDR(0),
 			(unsigned long)(cpu_stacks[0]) - KBASE, 
 			CPU_STACK_SIZE, VMR_READ | VMR_WRITE);
@@ -137,7 +156,7 @@ void secondary_start(u32 cpuid)
 	init_per_cpu_info(cpuid);
 
 	/* Mapping KSTACK into kernel page table. */
-	map_range_in_pgtbl_kernel((void*)((unsigned long)boot_ttbr1_l0 + KBASE), 
+	map_range_in_pgtbl_kernel((void*)((unsigned long)empty_page), 
 			KSTACKx_ADDR(cpuid),
 			(unsigned long)(cpu_stacks[cpuid]) - KBASE, 
 			CPU_STACK_SIZE, VMR_READ | VMR_WRITE);

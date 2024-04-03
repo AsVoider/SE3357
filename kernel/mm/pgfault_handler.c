@@ -84,6 +84,8 @@ static int __do_general_cow(struct vmspace *vmspace, struct vmregion *vmr,
 
         update_pte(fault_pte, L3, &new_pte_attr);
 
+        vmspace->rss += PAGE_SIZE;
+
         /* Step-6: Flush TLB of user virtual page(user_vpa) */
         user_vpa = ROUND_DOWN(fault_addr, PAGE_SIZE);
         flush_tlb_by_range(vmspace, user_vpa, PAGE_SIZE);
@@ -206,10 +208,15 @@ int handle_trans_fault(struct vmspace *vmspace, vaddr_t fault_addr)
                          * Not committed before. Then, allocate the physical
                          * page.
                          */
+                        long rss = 0;
                         /* LAB 2 TODO 7 BEGIN */
                         /* BLANK BEGIN */
                         /* Hint: Allocate a physical page and clear it to 0. */
-
+                        void *new_pg = get_pages(0);
+                        BUG_ON(new_pg == NULL);
+                        pa = virt_to_phys(new_pg);
+                        BUG_ON(pa == 0);
+                        memset((void *)phys_to_virt(pa), 0, PAGE_SIZE);
                         /* BLANK END */
                         /*
                          * Record the physical page in the radix tree:
@@ -221,8 +228,9 @@ int handle_trans_fault(struct vmspace *vmspace, vaddr_t fault_addr)
                         /* Add mapping in the page table */
                         lock(&vmspace->pgtbl_lock);
                         /* BLANK BEGIN */
-
+                        map_range_in_pgtbl(vmspace->pgtbl, fault_addr, pa, PAGE_SIZE, perm, &rss);
                         /* BLANK END */
+                        vmspace->rss += rss;
                         unlock(&vmspace->pgtbl_lock);
                 } else {
                         /*
@@ -248,11 +256,13 @@ int handle_trans_fault(struct vmspace *vmspace, vaddr_t fault_addr)
                          */
                         if (pmo->type == PMO_SHM || pmo->type == PMO_ANONYM) {
                                 /* Add mapping in the page table */
+                                long rss = 0;
                                 lock(&vmspace->pgtbl_lock);
                                 /* BLANK BEGIN */
-
+                                map_range_in_pgtbl(vmspace->pgtbl, fault_addr, pa, PAGE_SIZE, perm, &rss);
                                 /* BLANK END */
                                 /* LAB 2 TODO 7 END */
+                                vmspace->rss += rss;
                                 unlock(&vmspace->pgtbl_lock);
                         }
                 }

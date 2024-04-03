@@ -221,6 +221,7 @@ static int fill_page_table(struct vmspace *vmspace, struct vmregion *vmr)
         paddr_t pa;
         vaddr_t va;
         int ret;
+        long rss = 0;
 
         pm_size = vmr->pmo->size;
         pa = vmr->pmo->start;
@@ -228,7 +229,8 @@ static int fill_page_table(struct vmspace *vmspace, struct vmregion *vmr)
 
         lock(&vmspace->pgtbl_lock);
         ret = map_range_in_pgtbl(
-                vmspace->pgtbl, va, pa, pm_size, vmr->perm);
+                vmspace->pgtbl, va, pa, pm_size, vmr->perm, &rss);
+        vmspace->rss += rss;
         unlock(&vmspace->pgtbl_lock);
 
         return ret;
@@ -268,6 +270,8 @@ int vmspace_init(struct vmspace *vmspace, unsigned long pcid)
         reset_history_cpus(vmspace);
 
         vmspace->heap_boundary_vmr = NULL;
+
+        vmspace->rss = 0;
 
         return 0;
 }
@@ -360,8 +364,10 @@ static void __vmspace_unmap_range_pgtbl(struct vmspace *vmspace, vaddr_t va,
                                         size_t len)
 {
         if (len != 0) {
+                long rss = 0;
                 lock(&vmspace->pgtbl_lock);
-                unmap_range_in_pgtbl(vmspace->pgtbl, va, len);
+                unmap_range_in_pgtbl(vmspace->pgtbl, va, len, &rss);
+                vmspace->rss += rss;
                 unlock(&vmspace->pgtbl_lock);
                 flush_tlb_by_range(vmspace, va, len);
         }
@@ -456,7 +462,9 @@ struct vmregion *find_vmr_for_va(struct vmspace *vmspace, vaddr_t addr)
         /* LAB 2 TODO 6 BEGIN */
         /* Hint: Find the corresponding vmr for @addr in @vmspace */
         /* BLANK BEGIN */
-
+	struct rb_node *node = rb_search(&vmspace->vmr_tree, (const void *)addr, cmp_vmr_and_va);
+	struct vmregion *vmr = rb_entry(node, struct vmregion, tree_node);
+	return vmr;
         /* BLANK END */
         /* LAB 2 TODO 6 END */
 }
