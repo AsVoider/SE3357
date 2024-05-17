@@ -131,9 +131,11 @@ void handle_timer_irq(void)
         plat_handle_timer_irq(tick_delta);
         /* LAB 4 TODO BEGIN (exercise 6) */
         /* Decrease the budget of current thread by 1 if current thread is not NULL */
-
+        if (current_thread) {
+                current_thread->thread_ctx->sc->budget -= 1;
+        }
         /* Then call sched to trigger scheduling */
-
+        sched();
         /* LAB 4 TODO END (exercise 6) */
 }
 

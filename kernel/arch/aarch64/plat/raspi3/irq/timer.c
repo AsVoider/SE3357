@@ -44,11 +44,11 @@ void plat_timer_init(void)
 	/* LAB 4 TODO BEGIN (exercise 5) */
 	/* Note: you should add three lines of code. */
 	/* Read system register cntfrq_el0 to cntp_freq*/
-
+	asm volatile ("mrs %0, cntfrq_el0":"=r" (cntp_freq));
 	/* Calculate the cntp_tval based on TICK_MS and cntp_freq */
-
+	cntp_tval = (cntp_freq * TICK_MS / 1000);
 	/* Write cntp_tval to the system register cntp_tval_el0 */
-
+	asm volatile ("msr cntp_tval_el0, %0"::"r" (cntp_tval));
 	/* LAB 4 TODO END (exercise 5) */
 
 
@@ -59,9 +59,9 @@ void plat_timer_init(void)
 	/* LAB 4 TODO BEGIN (exercise 5) */
 	/* Note: you should add two lines of code. */
 	/* Calculate the value of timer_ctl */
-
+	timer_ctl = 0 << 1 | 1;
 	/* Write timer_ctl to the control register (cntp_ctl_el0) */
-
+	asm volatile ("msr cntp_ctl_el0, %0"::"r" (timer_ctl));
 	/* LAB 4 TODO END (exercise 5) */
 
 	test_timer_init();

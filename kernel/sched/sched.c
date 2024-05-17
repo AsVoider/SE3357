@@ -129,7 +129,14 @@ struct thread *find_runnable_thread(struct list_head *thread_list)
          * (thread->thread_ctx->kernel_stack_state == KS_FREE
          * || thread == current_thread))
          */
-
+        for_each_in_list (
+                thread, struct thread, ready_queue_node, thread_list) {
+                if (!thread->thread_ctx->is_suspended && 
+                (thread->thread_ctx->kernel_stack_state == KS_FREE
+                || thread == current_thread)) {
+                        return thread;
+                }
+        }
         /* LAB 4 TODO END (exercise 3) */
         return thread;
 }
@@ -466,7 +473,7 @@ void sys_yield(void)
         /* LAB 4 TODO BEGIN (exercise 4) */
         /* Trigger sched */
         /* Note: you should just add a function call (one line of code) */
-
+        sched();
         /* LAB 4 TODO END (exercise 4) */
         eret_to_thread(switch_context());
 }
