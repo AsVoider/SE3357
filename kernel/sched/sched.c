@@ -138,7 +138,7 @@ struct thread *find_runnable_thread(struct list_head *thread_list)
                 }
         }
         /* LAB 4 TODO END (exercise 3) */
-        return thread;
+        return NULL;
 }
 
 /* Global interfaces */
