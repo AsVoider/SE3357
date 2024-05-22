@@ -54,7 +54,7 @@ static bool mount_point_match(struct mount_point_info_node *mp, char *path,
 struct mount_point_info_node *get_mount_point(char *path, int path_len)
 {
         struct mount_point_info_node *iter;
-
+        printf("get mount info %s\n", path);
         int match_len_max = 0;
         struct mount_point_info_node *matched_fs = NULL;
 

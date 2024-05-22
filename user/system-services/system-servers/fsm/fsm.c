@@ -141,8 +141,9 @@ int fsm_mount_fs(const char *path, const char *mount_point)
         }
 
         /* Lab 5 TODO Begin */
-
-        UNUSED(mp_node);
+        mp_node->_fs_ipc_struct = ipc_register_client(fs_cap);
+        ret = fs_cap;
+        // UNUSED(mp_node);
 
         /* Lab 5 TODO End */
         pthread_rwlock_unlock(&mount_point_infos_rwlock);
@@ -232,9 +233,24 @@ DEFINE_SERVER_HANDLER(fsm_dispatch)
         switch (fsm_req->req) {
         case FSM_REQ_PARSE_PATH: {
                 /* Lab 5 TODO Begin */
-
-                UNUSED(mpinfo);
-                UNUSED(mount_id);
+                printf("receive request here\n");
+                mpinfo = get_mount_point(fsm_req->path, fsm_req->path_len);
+                mount_id = fsm_get_client_cap(client_badge, mpinfo->fs_cap);
+                if (mount_id == -1) {
+                        ret_with_cap = true;
+                        ipc_set_msg_send_cap_num(ipc_msg, 1);
+                        fsm_req->new_cap_flag = true;
+                        fsm_set_client_cap(client_badge, mpinfo->fs_cap);
+                        ipc_set_msg_cap(ipc_msg, 0, mpinfo->fs_cap);
+                } else {
+                        fsm_req->mount_id = mount_id;
+                        fsm_req->mount_path_len = mpinfo->path_len;
+                        fsm_req->new_cap_flag = false;
+                        fsm_req->mount_id = mount_id;
+                        strncpy(fsm_req->mount_path, mpinfo->path, mpinfo->path_len);
+                }
+                // UNUSED(mpinfo);
+                // UNUSED(mount_id);
                 
                 /* Lab 5 TODO End */
         }
