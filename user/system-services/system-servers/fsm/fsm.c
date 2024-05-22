@@ -131,6 +131,7 @@ int fsm_mount_fs(const char *path, const char *mount_point)
                 info("TMPFS is up, with cap = %d\n", fs_cap);
         } else {
                 fs_cap = mount_storage_device(path);
+                printf("path is %s, mount path is %s\n", path, mount_point);
                 if (fs_cap < 0) {
                         ret = -errno;
                         goto out;
@@ -144,7 +145,7 @@ int fsm_mount_fs(const char *path, const char *mount_point)
         mp_node->_fs_ipc_struct = ipc_register_client(fs_cap);
         ret = fs_cap;
         // UNUSED(mp_node);
-
+        printf("mount succeed cap is %d\n", ret);
         /* Lab 5 TODO End */
         pthread_rwlock_unlock(&mount_point_infos_rwlock);
 
@@ -234,15 +235,18 @@ DEFINE_SERVER_HANDLER(fsm_dispatch)
         case FSM_REQ_PARSE_PATH: {
                 /* Lab 5 TODO Begin */
                 printf("receive request here\n");
-                mpinfo = get_mount_point(fsm_req->path, fsm_req->path_len);
+                mpinfo = get_mount_point(fsm_req->path, strlen(fsm_req->path));
                 mount_id = fsm_get_client_cap(client_badge, mpinfo->fs_cap);
                 if (mount_id == -1) {
+                        printf("no mount\n");
                         ret_with_cap = true;
                         ipc_set_msg_send_cap_num(ipc_msg, 1);
                         fsm_req->new_cap_flag = true;
+                        printf("mpinfo mount is %s\n", mpinfo->path);
                         fsm_set_client_cap(client_badge, mpinfo->fs_cap);
                         ipc_set_msg_cap(ipc_msg, 0, mpinfo->fs_cap);
                 } else {
+                        printf("mounted\n");
                         fsm_req->mount_id = mount_id;
                         fsm_req->mount_path_len = mpinfo->path_len;
                         fsm_req->new_cap_flag = false;

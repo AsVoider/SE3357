@@ -60,6 +60,7 @@ struct mount_point_info_node *get_mount_point(char *path, int path_len)
 
         for_each_in_list (
                 iter, struct mount_point_info_node, node, &mount_point_infos) {
+                // printf("iter mount point is %s, iter path len is %d, path len is %d\n", iter->path, iter->path_len, path_len);
                 if (iter->path_len <= path_len && iter->path_len > match_len_max
                     && mount_point_match(iter, path, path_len)) {
                         matched_fs = iter;
