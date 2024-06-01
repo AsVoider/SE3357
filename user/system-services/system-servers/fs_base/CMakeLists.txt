@@ -8,7 +8,7 @@
 # PURPOSE.
 # See the Mulan PSL v2 for more details.
 
-add_library(fs_base STATIC fs_page_cache.c fs_page_fault.c fs_wrapper.c
-                           fs_wrapper_ops.c fs_vnode.c)
+add_library(fs_base STATIC fs_page_cache.c fs_page_fault.c fs_wrapper.c.obj
+                           fs_wrapper_ops.c.obj fs_vnode.c.obj)
 target_include_directories(fs_base PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 chcore_copy_all_targets_to_ramdisk()

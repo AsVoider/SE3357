@@ -130,8 +130,8 @@ int fsm_mount_fs(const char *path, const char *mount_point)
                 mp_node = set_mount_point("/", 1, fs_cap);
                 info("TMPFS is up, with cap = %d\n", fs_cap);
         } else {
-                fs_cap = mount_storage_device(path);
                 printf("path is %s, mount path is %s\n", path, mount_point);
+                fs_cap = mount_storage_device(path);
                 if (fs_cap < 0) {
                         ret = -errno;
                         goto out;
@@ -243,11 +243,15 @@ DEFINE_SERVER_HANDLER(fsm_dispatch)
                         ipc_set_msg_send_cap_num(ipc_msg, 1);
                         fsm_req->new_cap_flag = true;
                         printf("mpinfo mount is %s\n", mpinfo->path);
-                        fsm_set_client_cap(client_badge, mpinfo->fs_cap);
+                        mount_id = fsm_set_client_cap(client_badge, mpinfo->fs_cap);
+
+                        fsm_req->mount_id = mount_id;
+                        fsm_req->mount_path_len = mpinfo->path_len;
+                        strncpy(fsm_req->mount_path, mpinfo->path, mpinfo->path_len);
+
                         ipc_set_msg_cap(ipc_msg, 0, mpinfo->fs_cap);
                 } else {
                         printf("mounted\n");
-                        fsm_req->mount_id = mount_id;
                         fsm_req->mount_path_len = mpinfo->path_len;
                         fsm_req->new_cap_flag = false;
                         fsm_req->mount_id = mount_id;
