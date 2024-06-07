@@ -54,13 +54,11 @@ static bool mount_point_match(struct mount_point_info_node *mp, char *path,
 struct mount_point_info_node *get_mount_point(char *path, int path_len)
 {
         struct mount_point_info_node *iter;
-        // printf("get mount info %s\n", path);
         int match_len_max = 0;
         struct mount_point_info_node *matched_fs = NULL;
 
         for_each_in_list (
                 iter, struct mount_point_info_node, node, &mount_point_infos) {
-                // printf("iter mount point is %s, iter path len is %d, path len is %d\n", iter->path, iter->path_len, path_len);
                 if (iter->path_len <= path_len && iter->path_len > match_len_max
                     && mount_point_match(iter, path, path_len)) {
                         matched_fs = iter;

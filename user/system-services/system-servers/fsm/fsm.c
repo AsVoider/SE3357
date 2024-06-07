@@ -130,7 +130,6 @@ int fsm_mount_fs(const char *path, const char *mount_point)
                 mp_node = set_mount_point("/", 1, fs_cap);
                 info("TMPFS is up, with cap = %d\n", fs_cap);
         } else {
-                printf("path is %s, mount path is %s\n", path, mount_point);
                 fs_cap = mount_storage_device(path);
                 if (fs_cap < 0) {
                         ret = -errno;
@@ -145,7 +144,6 @@ int fsm_mount_fs(const char *path, const char *mount_point)
         mp_node->_fs_ipc_struct = ipc_register_client(fs_cap);
         ret = fs_cap;
         // UNUSED(mp_node);
-        printf("mount succeed cap is %d\n", ret);
         /* Lab 5 TODO End */
         pthread_rwlock_unlock(&mount_point_infos_rwlock);
 
@@ -208,7 +206,6 @@ int fsm_sync_page_cache(void)
                 ret = ipc_call(ipc_struct, ipc_msg);
                 ipc_destroy_msg(ipc_msg);
                 if (ret != 0) {
-                        printf("Failed to sync in %s\n", iter->path);
                         goto out;
                 }
         }
@@ -234,7 +231,6 @@ DEFINE_SERVER_HANDLER(fsm_dispatch)
         switch (fsm_req->req) {
         case FSM_REQ_PARSE_PATH: {
                 /* Lab 5 TODO Begin */
-                // printf("receive request here\n");
                 mpinfo = get_mount_point(fsm_req->path, strlen(fsm_req->path));
 
                 pthread_mutex_lock(&fsm_client_cap_table_lock);
@@ -242,10 +238,8 @@ DEFINE_SERVER_HANDLER(fsm_dispatch)
                 pthread_mutex_unlock(&fsm_client_cap_table_lock);
 
                 if (mount_id == -1) {
-                        printf("no mount\n");
                         ret_with_cap = true;
                         fsm_req->new_cap_flag = true;
-                        printf("mpinfo mount is %s\n", mpinfo->path);
 
                         pthread_mutex_lock(&fsm_client_cap_table_lock);
                         mount_id = fsm_set_client_cap(client_badge, mpinfo->fs_cap);
@@ -259,7 +253,6 @@ DEFINE_SERVER_HANDLER(fsm_dispatch)
                         ipc_set_msg_cap(ipc_msg, 0, mpinfo->fs_cap);
                         ret = 1;
                 } else {
-                        // printf("mounted\n");
                         fsm_req->mount_path_len = mpinfo->path_len;
                         fsm_req->new_cap_flag = false;
                         fsm_req->mount_id = mount_id;

@@ -177,7 +177,6 @@ void fs_wrapper_clear_server_entry(badge_t client_badge, int fid)
                 if (private_iter->client_badge == client_badge) {
                         for (int i = 0; i < MAX_SERVER_ENTRY_NUM; i++) {
                                 if (private_iter->fd_to_fid[i] == fid) {
-                                        printf("clear fd is %d fid is %d\n", i, private_iter->fd_to_fid[i]);
                                         private_iter->fd_to_fid[i] = -1;
                                 }
                         }

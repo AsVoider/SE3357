@@ -125,7 +125,6 @@ int fs_wrapper_open(badge_t client_badge, ipc_msg_t *ipc_msg,
          *   2. get/alloc vnode
          *   3. associate server_entry with vnode
          */
-        // printf("open here\n");
         int return_fd;
         char *path;
         int flag;
@@ -142,7 +141,6 @@ int fs_wrapper_open(badge_t client_badge, ipc_msg_t *ipc_msg,
         off_t vnode_size;
 
         return_fd = fr->open.new_fd;
-        // printf("return fd is %d\n", return_fd);
         path = fr->open.pathname;
         flag = fr->open.flags;
         mode = fr->open.mode; 
@@ -181,7 +179,6 @@ int fs_wrapper_close(badge_t client_badge, ipc_msg_t *ipc_msg,
                      struct fs_request *fr)
 {
         /* Lab 5 TODO Begin */
-        // printf("close here\n");
         int fd;
         struct fs_vnode *vnode;
         int ret;
@@ -199,10 +196,7 @@ int fs_wrapper_close(badge_t client_badge, ipc_msg_t *ipc_msg,
         }
 
         server_entrys[fd]->refcnt -= 1;
-        // printf("fd now is %d, ref cnt is %d\n", fd, server_entrys[fd]->refcnt);
-        // if (vnode) {
-        //         printf("now vnode ref is %d, vnode is 0x%p\n", vnode->refcnt, (void *)(vnode->private));
-        // }
+
         ret = server_ops.close(vnode->private, (vnode->type == FS_NODE_DIR), false);
 
         if (server_entrys[fd]->refcnt == 0) {
@@ -376,9 +370,8 @@ int fs_wrapper_lseek(ipc_msg_t *ipc_msg, struct fs_request *fr)
         }
 
         server_entrys[fd]->offset = target_off;
-        //printf("ret in fr is %ld\n", fr->lseek.ret);
         fr->lseek.ret = target_off;
-        // printf("converted fd is %d, target off is %lld, whence is %d, returned target is %lld\n", fd, offset, whence, target_off);
+
         return target_off;
 
         /* Lab 5 TODO End */
@@ -813,7 +806,6 @@ int fs_wrapper_fcntl(badge_t client_badge, ipc_msg_t *ipc_msg,
                                        fr->fcntl.fd,
                                        fr->fcntl.fcntl_cmd,
                                        fr->fcntl.fcntl_arg);
-                printf("dup 2 fd is %d dupop ret is %d\n", fr->fcntl.fd, ret);
                 break;
         }
 
