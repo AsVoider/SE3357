@@ -21,10 +21,11 @@ struct list_head fsm_client_cap_table;
 int fsm_set_client_cap(badge_t client_badge, cap_t cap)
 {
         /* Lab 5 TODO Begin */
+        // printf("client is %d, cap is %d\n", client_badge, cap);
         struct fsm_client_cap_node *iter;
         bool findCap = false;
         int ret = 0;
-        pthread_mutex_lock(&fsm_client_cap_table_lock);
+        // pthread_mutex_lock(&fsm_client_cap_table_lock);
         for_each_in_list(iter, struct fsm_client_cap_node, node, &fsm_client_cap_table) {
                 if (iter->client_badge == client_badge) {
                         findCap = true;
@@ -43,7 +44,7 @@ int fsm_set_client_cap(badge_t client_badge, cap_t cap)
                 list_add(&fc->node, &fsm_client_cap_table);
                 ret = 0;
         }
-        pthread_mutex_unlock(&fsm_client_cap_table_lock);
+        // pthread_mutex_unlock(&fsm_client_cap_table_lock);
         /* Lab 5 TODO End */
         return ret;
 }
@@ -53,18 +54,27 @@ int fsm_get_client_cap(badge_t client_badge, cap_t cap)
 {
         /* Lab 5 TODO Begin */
         int ret = -1;
-        pthread_mutex_lock(&fsm_client_cap_table_lock);
+        // printf("get client is %d, cap is %d\n", client_badge, cap);
+        // pthread_mutex_lock(&fsm_client_cap_table_lock);
+        // printf("get lock\n");
         struct fsm_client_cap_node *iter;
         for_each_in_list(iter, struct fsm_client_cap_node, node, &fsm_client_cap_table) {
                 if (iter->client_badge == client_badge) {
+                        // printf("iter client is %d\n", iter->client_badge);
                         for (int i = 0; i < iter->cap_num; i++) {
                                 if (cap == iter->cap_table[i]) {
                                         ret = i;
+                                        break;
                                 }
+                        }
+                        if (ret != -1) {
+                                // printf("ret is %d\n", ret);
+                                break;
                         }
                 }
         }
-        pthread_mutex_unlock(&fsm_client_cap_table_lock);
+        // printf("return value is %d\n", ret);
+        // pthread_mutex_unlock(&fsm_client_cap_table_lock);
         /* Lab 5 TODO End */
         return ret;
 }

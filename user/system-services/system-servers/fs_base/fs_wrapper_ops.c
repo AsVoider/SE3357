@@ -125,8 +125,54 @@ int fs_wrapper_open(badge_t client_badge, ipc_msg_t *ipc_msg,
          *   2. get/alloc vnode
          *   3. associate server_entry with vnode
          */
+        // printf("open here\n");
+        int return_fd;
+        char *path;
+        int flag;
+        int mode;
+        int entry_id;
+        int ret;
+
+        ino_t vnode_id;
+        int vnode_type;
+        void *private;
+
+        struct fs_vnode *vnode;
+
+        off_t vnode_size;
+
+        return_fd = fr->open.new_fd;
+        // printf("return fd is %d\n", return_fd);
+        path = fr->open.pathname;
+        flag = fr->open.flags;
+        mode = fr->open.mode; 
+
+        ret = server_ops.open(path, flag, mode, &vnode_id, &vnode_size, &vnode_type, &private);
+
+        if (ret != 0) {
+                fs_debug_error("ret = %d\n", ret);
+                return ret;
+        }
+
+        entry_id = alloc_entry();
+        if (entry_id < 0) {
+                server_ops.close(private, (vnode_type == FS_NODE_DIR), true);
+                return -EMFILE;
+        }
+
+        vnode = get_fs_vnode_by_id(vnode_id);
+        if (vnode != NULL) {
+                inc_ref_fs_vnode(vnode);
+                assign_entry(server_entrys[entry_id], flag, 0, 1, (void *)strdup(path), vnode);
+        } else {
+                vnode = alloc_fs_vnode(vnode_id, vnode_type, vnode_size, private);
+                push_fs_vnode(vnode);
+                assign_entry(server_entrys[entry_id], flag, 0, 1, (void *)strdup(path), vnode);
+        }
+
+        fs_wrapper_set_server_entry(client_badge, return_fd, entry_id);
         
-        return 0;
+        return return_fd;
 
         /* Lab 5 TODO End */
 }
@@ -135,21 +181,115 @@ int fs_wrapper_close(badge_t client_badge, ipc_msg_t *ipc_msg,
                      struct fs_request *fr)
 {
         /* Lab 5 TODO Begin */
-        return 0;
+        // printf("close here\n");
+        int fd;
+        struct fs_vnode *vnode;
+        int ret;
+
+        ret = 0;
+        fd = fr->close.fd;
+        if (fd_type_invalid(fd, true) && fd_type_invalid(fd, false)) {
+                return -ENOENT;
+        }
+
+        vnode = server_entrys[fd]->vnode;
+
+        if (server_entrys[fd]->vnode->refcnt - 1 > 1) {
+                return 0;
+        }
+
+        server_entrys[fd]->refcnt -= 1;
+        // printf("fd now is %d, ref cnt is %d\n", fd, server_entrys[fd]->refcnt);
+        // if (vnode) {
+        //         printf("now vnode ref is %d, vnode is 0x%p\n", vnode->refcnt, (void *)(vnode->private));
+        // }
+        ret = server_ops.close(vnode->private, (vnode->type == FS_NODE_DIR), false);
+
+        if (server_entrys[fd]->refcnt == 0) {
+                free_entry(fd);
+
+                fs_wrapper_clear_server_entry(client_badge, fd);
+
+                dec_ref_fs_vnode(vnode);
+        }       
+        return ret;
         /* Lab 5 TODO End */
 }
 
 int fs_wrapper_read(ipc_msg_t *ipc_msg, struct fs_request *fr)
 {
         /* Lab 5 TODO Begin */
-        return 0;
+        int fd;
+        char *buf;
+        unsigned long long offset;
+        size_t size;
+        void *operator;
+        int ret;
+        struct fs_vnode *vnode;
+
+        ret = 0;
+        fd = fr->read.fd;
+        buf = (void *)fr;
+
+        size = (size_t)fr->read.count;
+
+        // pthread_mutex_lock(&server_entrys[fd]->lock);
+        offset = (unsigned long long)server_entrys[fd]->offset;
+        vnode = server_entrys[fd]->vnode;
+        operator = vnode->private;
+
+        if (offset >= server_entrys[fd]->vnode->size) {
+                // pthread_mutex_unlock(&server_entrys[fd]->lock);
+                return 0;
+        }
+
+        if (offset + size > vnode->size) {
+                size = vnode->size - offset;
+        }
+
+        // pthread_rwlock_rdlock(&vnode->rwlock);
+        ret = server_ops.read(operator, offset, size, buf);
+        // pthread_rwlock_unlock(&vnode->rwlock);
+
+        server_entrys[fd]->offset += ret;
+
+        // pthread_mutex_unlock(&server_entrys[fd]->lock);
+
+        return ret;
         /* Lab 5 TODO End */
 }
 
 int fs_wrapper_pread(ipc_msg_t *ipc_msg, struct fs_request *fr)
 {
         /* Lab 5 TODO Begin (OPTIONAL) */
-        return 0;
+        int fd;
+        char *buf;
+        unsigned long long offset;
+        size_t size;
+        void *operator;
+        int ret;
+        struct fs_vnode* vnode;
+
+        ret = 0;
+        fd = fr->pread.fd;
+        offset = (unsigned long long)fr->pread.offset;
+        size = (size_t)fr->pread.count;
+        vnode = server_entrys[fd]->vnode;
+        operator = vnode->private;
+        buf = (void *)fr;
+
+        if (offset >= vnode->size) {
+                return 0;
+        }
+
+        if (offset + size > vnode->size) {
+                size = vnode->size - offset;
+        }
+
+        // pthread_rwlock_rdlock(&vnode->rwlock);
+        ret = server_ops.read(operator, offset, size, buf);
+        // pthread_rwlock_unlock(&vnode->rwlock);
+        return ret;
         /* Lab 5 TODO End (OPTIONAL) */
 }
 
@@ -163,14 +303,48 @@ int fs_wrapper_pwrite(ipc_msg_t *ipc_msg, struct fs_request *fr)
 int fs_wrapper_write(ipc_msg_t *ipc_msg, struct fs_request *fr)
 {
         /* Lab 5 TODO Begin */
-        return 0;
+        int fd;
+        char *buf;
+        size_t size;
+        unsigned long long offset;
+        void *operator;
+	int ret;
+	// struct fs_vnode *vnode;
+
+        ret = 0;
+        fd = fr->write.fd;
+        buf = (void *)fr + sizeof(struct fs_request);
+        size = (size_t)fr->write.count;
+        offset = (unsigned long long)server_entrys[fd]->offset;
+        // vnode = server_entrys[fd]->vnode;
+        operator = server_entrys[fd]->vnode->private;
+
+        if (size == 0) {
+                return 0;
+        }
+
+        ret = server_ops.write(operator, offset, size, buf);
+
+        server_entrys[fd]->offset += ret;
+        if (server_entrys[fd]->offset > server_entrys[fd]->vnode->size) {
+                server_entrys[fd]->vnode->size = server_entrys[fd]->offset;
+        }
+
+        return ret;
         /* Lab 5 TODO End */
 }
 
 int fs_wrapper_lseek(ipc_msg_t *ipc_msg, struct fs_request *fr)
 {
         /* Lab 5 TODO Begin */
+        int fd;
+        long long offset;
+        int whence;
+        long long target_off;
 
+        fd = fr->lseek.fd;
+        offset = fr->lseek.offset;
+        whence = fr->lseek.whence;
         /* 
          * Hint: possible values of whence:
          *   SEEK_SET 0
@@ -178,7 +352,34 @@ int fs_wrapper_lseek(ipc_msg_t *ipc_msg, struct fs_request *fr)
          *   SEEK_END 2
          */
         
-        return 0;
+        switch (whence)
+        {
+        case SEEK_SET: {
+                target_off = offset;
+                break;
+        }
+        case SEEK_CUR: {
+                target_off = server_entrys[fd]->offset + offset;
+                break;
+        }
+        case SEEK_END: {
+                target_off = server_entrys[fd]->vnode->size + offset;
+                break;
+        }
+        default:
+                target_off = -1;
+                break;
+        }
+
+        if (target_off < 0) {
+                return -EINVAL;
+        }
+
+        server_entrys[fd]->offset = target_off;
+        //printf("ret in fr is %ld\n", fr->lseek.ret);
+        fr->lseek.ret = target_off;
+        // printf("converted fd is %d, target off is %lld, whence is %d, returned target is %lld\n", fd, offset, whence, target_off);
+        return target_off;
 
         /* Lab 5 TODO End */
 }
@@ -458,7 +659,6 @@ int fs_wrapper_fmap(badge_t client_badge, ipc_msg_t *ipc_msg,
         offset = (off_t)fr->mmap.offset;
 
         vnode = server_entrys[fd]->vnode;
-
         fs_debug_trace_fswrapper(
                 "addr=0x%lx, length=0x%lx, prot=%d, flags=%d, fd=%d, offset=0x%lx\n",
                 (u64)addr,
@@ -485,14 +685,32 @@ int fs_wrapper_fmap(badge_t client_badge, ipc_msg_t *ipc_msg,
         if (length % PAGE_SIZE) {
                 length = ROUND_UP(length, PAGE_SIZE);
         }
-        UNUSED(addr);
-        UNUSED(fd);
-        UNUSED(offset);
+        // UNUSED(addr);
+        // UNUSED(fd);
+        // UNUSED(offset);
+
+        ret = fmap_area_insert(client_badge, (vaddr_t)addr, length, vnode, offset, flags, prot);
+        if (ret < 0) {
+                return ret;
+        }
+
+        if (vnode->pmo_cap == -1) {
+                pmo_cap = usys_create_pmo(vnode->size, PMO_FILE);
+                if (pmo_cap < 0) {
+                        ret = fmap_area_remove(client_badge, (vaddr_t)addr, length);
+                        return ret;
+                }
+                vnode->pmo_cap = pmo_cap;
+        }
+
+        *ret_with_cap = true;
+        ipc_set_msg_return_cap_num(ipc_msg, 1);
+        ipc_set_msg_cap(ipc_msg, 0, vnode->pmo_cap);
 
         /* Lab 5 TODO Begin */
-        UNUSED(pmo_cap);
-        UNUSED(vnode);
-        UNUSED(ret);
+        // UNUSED(pmo_cap);
+        // UNUSED(vnode);
+        // UNUSED(ret);
         return 0;
         /* Lab 5 TODO End */
 }
@@ -595,6 +813,7 @@ int fs_wrapper_fcntl(badge_t client_badge, ipc_msg_t *ipc_msg,
                                        fr->fcntl.fd,
                                        fr->fcntl.fcntl_cmd,
                                        fr->fcntl.fcntl_arg);
+                printf("dup 2 fd is %d dupop ret is %d\n", fr->fcntl.fd, ret);
                 break;
         }
 

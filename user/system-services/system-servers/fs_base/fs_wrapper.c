@@ -123,7 +123,11 @@ int fs_wrapper_get_server_entry(badge_t client_badge, int fd)
 
         /* Lab 5 TODO Begin */
 
-        UNUSED(n);
+        for_each_in_list(n, struct server_entry_node, node, &server_entry_mapping) {
+                if (n->client_badge == client_badge)
+                        return n->fd_to_fid[fd];
+        }
+        // UNUSED(n);
 
         /* Lab 5 TODO End */
         return -1;
@@ -138,14 +142,24 @@ int fs_wrapper_set_server_entry(badge_t client_badge, int fd, int fid)
         BUG_ON(fd < 0 || fd >= MAX_SERVER_ENTRY_PER_CLIENT);
 
         /* Lab 5 TODO Begin */
-
+        for_each_in_list(private_iter, struct server_entry_node, node, &server_entry_mapping) {
+                if (private_iter->client_badge == client_badge) {
+                        private_iter->fd_to_fid[fd] = fid;
+                        return 0;
+                }
+        }
         /* 
          * Check if client_badge already involved, 
          * create new server_entry_node if not.
          */
 
-        UNUSED(private_iter);
-        
+        struct server_entry_node *n = (struct server_entry_node *)malloc(sizeof(*n));
+        n->client_badge = client_badge;
+        for (int i = 0; i < MAX_SERVER_ENTRY_PER_CLIENT; i++)
+                n->fd_to_fid[i] = -1;
+        // UNUSED(private_iter);
+        n->fd_to_fid[fd] = fid;
+        list_append(&n->node, &server_entry_mapping);
         /* Lab 5 TODO End */
         return 0;
 }
@@ -163,6 +177,7 @@ void fs_wrapper_clear_server_entry(badge_t client_badge, int fid)
                 if (private_iter->client_badge == client_badge) {
                         for (int i = 0; i < MAX_SERVER_ENTRY_NUM; i++) {
                                 if (private_iter->fd_to_fid[i] == fid) {
+                                        printf("clear fd is %d fid is %d\n", i, private_iter->fd_to_fid[i]);
                                         private_iter->fd_to_fid[i] = -1;
                                 }
                         }

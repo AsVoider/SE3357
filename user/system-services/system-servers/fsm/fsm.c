@@ -234,29 +234,38 @@ DEFINE_SERVER_HANDLER(fsm_dispatch)
         switch (fsm_req->req) {
         case FSM_REQ_PARSE_PATH: {
                 /* Lab 5 TODO Begin */
-                printf("receive request here\n");
+                // printf("receive request here\n");
                 mpinfo = get_mount_point(fsm_req->path, strlen(fsm_req->path));
+
+                pthread_mutex_lock(&fsm_client_cap_table_lock);
                 mount_id = fsm_get_client_cap(client_badge, mpinfo->fs_cap);
+                pthread_mutex_unlock(&fsm_client_cap_table_lock);
+
                 if (mount_id == -1) {
                         printf("no mount\n");
                         ret_with_cap = true;
-                        ipc_set_msg_send_cap_num(ipc_msg, 1);
                         fsm_req->new_cap_flag = true;
                         printf("mpinfo mount is %s\n", mpinfo->path);
+
+                        pthread_mutex_lock(&fsm_client_cap_table_lock);
                         mount_id = fsm_set_client_cap(client_badge, mpinfo->fs_cap);
+                        pthread_mutex_unlock(&fsm_client_cap_table_lock);
 
                         fsm_req->mount_id = mount_id;
-                        fsm_req->mount_path_len = mpinfo->path_len;
+                        // fsm_req->mount_path_len = mpinfo->path_len;
                         strncpy(fsm_req->mount_path, mpinfo->path, mpinfo->path_len);
 
+                        ipc_set_msg_return_cap_num(ipc_msg, 1);
                         ipc_set_msg_cap(ipc_msg, 0, mpinfo->fs_cap);
+                        ret = 1;
                 } else {
-                        printf("mounted\n");
+                        // printf("mounted\n");
                         fsm_req->mount_path_len = mpinfo->path_len;
                         fsm_req->new_cap_flag = false;
                         fsm_req->mount_id = mount_id;
                         strncpy(fsm_req->mount_path, mpinfo->path, mpinfo->path_len);
                 }
+                break;
                 // UNUSED(mpinfo);
                 // UNUSED(mount_id);
                 
