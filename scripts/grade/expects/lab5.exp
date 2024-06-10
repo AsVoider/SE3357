@@ -1,6 +1,6 @@
 #!/usr/bin/expect -f
 
-set timeout 240
+set timeout 20
 log_user 0
 
 set RED "\033\[0;31m"
