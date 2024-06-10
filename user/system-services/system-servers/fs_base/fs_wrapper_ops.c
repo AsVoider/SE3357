@@ -290,7 +290,39 @@ int fs_wrapper_pread(ipc_msg_t *ipc_msg, struct fs_request *fr)
 int fs_wrapper_pwrite(ipc_msg_t *ipc_msg, struct fs_request *fr)
 {
         /* Lab 5 TODO Begin (OPTIONAL) */
-        return 0;
+        int fd;
+        char *buf;
+        size_t size;
+        unsigned long long offset;
+        void *operator;
+	int ret;
+
+        ret = 0;
+        fd = fr->pwrite.fd;
+        buf = (void *)fr + sizeof(struct fs_request);
+        size = (size_t)fr->pwrite.count;
+        offset = (unsigned long long)fr->pwrite.count;
+        operator = server_entrys[fd]->vnode->private;
+
+        if (size == 0) {
+                return 0;
+        }
+
+        if (offset > server_entrys[fd]->vnode->size) {
+                return 0;
+        }
+
+        // pthread_mutex_lock(&server_entrys[fd]->lock);
+
+        ret = server_ops.write(operator, offset, size, buf);
+
+        if (offset + size > server_entrys[fd]->vnode->size) {
+                server_entrys[fd]->vnode->size = offset + size;
+        }
+
+        // pthread_mutex_unlock(&server_entrys[fd]->lock);
+
+        return ret;
         /* Lab 5 TODO End (OPTIONAL) */
 }
 
@@ -316,6 +348,7 @@ int fs_wrapper_write(ipc_msg_t *ipc_msg, struct fs_request *fr)
         if (size == 0) {
                 return 0;
         }
+        // pthread_mutex_lock(&server_entrys[fd]->lock);
 
         ret = server_ops.write(operator, offset, size, buf);
 
@@ -324,6 +357,7 @@ int fs_wrapper_write(ipc_msg_t *ipc_msg, struct fs_request *fr)
                 server_entrys[fd]->vnode->size = server_entrys[fd]->offset;
         }
 
+        // pthread_mutex_unlock(&server_entrys[fd]->lock);
         return ret;
         /* Lab 5 TODO End */
 }
